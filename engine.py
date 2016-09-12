@@ -568,97 +568,76 @@ elif 'WHERE' in sql:
 		# FIRST
 		if len(first.split("="))>2:
 			print('Error: Condition is invalid ')
-			condition1 = first.split("=")
-			op_func = ops["="]
+		condition1 = first.split("=")
+		op_func = ops["="]
 
-			term1 = condition1[0]
-			term2 = condition1[1]
+		term1 = condition1[0]
+		term2 = condition1[1]
 
 
-			c1 = term1.split('.')[1]
-			t1 = term1.split('.')[0]
-			c1_ind = D[t1][0].index(c1)
+		c1 = term1.split('.')[1]
+		t1 = term1.split('.')[0]
+		c1_ind = D[t1][0].index(c1)
 
 		#SECOND
 		if len(second.split("="))>2:
 			print('Error: Condition is invalid ')
-			condition2 = second.split("=")
-			op_func = ops["="]
+		condition2 = second.split("=")
+		op_func = ops["="]
 
-			term3 = condition2[0]
-			term4 = condition2[1]
+		term3 = condition2[0]
+		term4 = condition2[1]
 
 
-			c3 = term3.split('.')[1]
-			t3 = term3.split('.')[0]
-			c3_ind = D[t3][0].index(c3)
+		c3 = term3.split('.')[1]
+		t3 = term3.split('.')[0]
+		c3_ind = D[t3][0].index(c3)
+
+		col_op = [[]]
+		rows = []
+		snitch = 0
 			
-
-			if term2.isnumeric():
-				# ********************************************************************************************************** #
-				#select A,B from t1,t2 where t1.A <op> NUMBER
-				
-				col_op = []
-				f_row.extend(D[t1][0])
-				output.append((f_row))
-				rows = []
-				for k in range(len(cols)):
+		for k in range(len(cols)):
+			col_name = cols[k].split('.')
+			# of type tablename.colname
+			if len(col_name)>1:
+				t_name = col_name[0]
+				col = col_name[1]
+				index =  D[t_name][0].index(col)
+				for ind in range(1,len(D[t1])): #assumes all have same no of rows
 					col_op.append([])
-					col_name = cols[k].split('.')
-					# of type tablename.colname
-					if len(col_name)>1:
-						t_name = col_name[0]
-						col = col_name[1]
-						index =  D[t_name][0].index(col)
-						for ind in range(1,len(D[t1])):
-							res1 = op_func(D[t1][ind][c_ind], int(term2)):
-								col_op[k].append(D[t_name][ind][index])
-					else:
-						print('Column '+ col_name[0]+' in field list is ambiguous')
+					if term2.isnumeric():
+						res1=op_func(D[t1][ind][c1_ind], int(term2))
+						col1_op = D[t_name][ind][index]
 
+					elif term2.isnumeric() is False:
+						c2 = term2.split('.')[1]
+						t2 = term2.split('.')[0]
+						res1=op_func(D[t1][ind][c1_ind], D[t2][ind][c2_ind])
+						
+					if term4.isnumeric():
 
-			else:
-				# ********************************************************************************************************** #
-				#select A,B from t1,t2 where t1.A <op> t2.B
-				c2 = term2.split('.')[1]
-				t2 = term2.split('.')[0]
-				
-				#error handling
-				c2_ind = D[t2][0].index(c2) if c2 in D[t2][0] else -1
-				if c2_ind == -1:
-				   	print('Error : Attribute not found')
-				   	sys.exit()
-				f_row = []
-				for i in range(len(cols)):
-					f_row.append(cols[i])
-				output.append((f_row))
+						res2=op_func(D[t3][ind][c3_ind], int(term4))
 
-				col_op = []
+					elif term4.isnumeric() is False:
+						c4 = term4.split('.')[1]
+						t4 = term4.split('.')[0]
+						res2=op_func(D[t1][ind][c3_ind], D[t2][ind][c4_ind])
+						col2_op=D[t_name][ind][index]
 
-				for i in range(len(cols)):
-					col_name = cols[i].split('.')
-					if len(col_name)>1:
-						if col_name[1] not in D[col_name[0]][0]:
-							print('ERROR: Attribute ' + col_name[1] +' not in ' + col_name[0])
-				rows = []
-				for k in range(len(cols)):
-					col_op.append([])
-					col_name = cols[k].split('.')
-					# of type tablename.colname
-					if len(col_name)>1:
-						t_name = col_name[0]
-						col = col_name[1]
-						index =  D[t_name][0].index(col)
-						for ind in range(1,len(D[t1])):
-							if op_func(D[t1][ind][c_ind], D[t2][ind][c2_ind]):
-								col_op[k].append(D[t_name][ind][index])
-					
-					else:
-						print('Column '+ col_name[0]+' in field list is ambiguous')
+					if and_index!=-1 and or_index==-1:
+					#AND
+						if res1 and res2:
+							col_op[ind].append(D[t_name][ind][index])
 
-			print(', '.join(str(x) for x in f_row))
-			for count_j in range(len(col_op[i])):
-				line = []
-				for i in range(len(col_op)):
-					line.append(col_op[i][count_j])
-				print(', '.join(str(x) for x in line))
+					elif or_index!=-1 and and_index == -1:
+					#OR
+						if res1 or res2:
+							col_op[ind].append(D[t_name][ind][index])
+		count_j = 0
+
+		for snitch in range(col_op.count([])):
+			col_op.remove([])
+	
+		print(', '.join(str(x) for x in cols))
+		print(', '.join(str(x) for x in col_op ))
