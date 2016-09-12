@@ -4,6 +4,8 @@
 import csv,sys,re,itertools
 from collections import Counter
 from copy import deepcopy
+import operator
+
 
 
 def join_tables(a,b):
@@ -30,6 +32,13 @@ table_name = []
 t = 0
 keywords = ['SELECT','FROM','WHERE','AND','OR']
 functions = ['sum', 'average', 'max' , 'min', 'SUM', 'AVERAGE','MAX','MIN']
+ops = {"=": operator.eq,
+       "<": operator.lt,
+       "<=": operator.le,
+       ">": operator.gt,
+       ">=": operator.ge,
+       "!=": operator.ne,
+       "<>": operator.ne }
 
 #-----------------------------------------------------------------------------------------------------#
 
@@ -86,11 +95,18 @@ select_index = sql.index('SELECT') + 1
 from_index = sql.index('FROM')
 
 cols = []
+tcols = sql[select_index:from_index]
+for x in tcols:
+	if (x.startswith('distinct(') and x.startswith('DISTINCT(') and x.startswith(tuple(functions))) is False:
+		cols.extend(x.split(','))
+	elif x.endswith(','):
+		cols.append(x[:-1])
+	elif x != '' and x!= ',':
+		cols.append(x)	
 
-# select what all 
-while select_index != from_index:
-	cols.append(sql[select_index].split(","))
-	select_index += 1
+
+for i in range(cols.count('')):
+	cols.remove('')
 
 cond = []
 first = []
@@ -100,6 +116,11 @@ where_index = len(sql)
 if 'WHERE' in sql:
 	where_index = sql.index('WHERE')
 	cond = sql[where_index+1 : ]
+
+	#error handling
+	if cond == []:
+		print('No condition for WHERE!')
+		sys.exit()
 
 	first = []
 	second = []
@@ -123,19 +144,15 @@ for i in table_names:
 #-----------------------------------------------------------------------------------------------------#
 # Processing Queries
 
-# function handling
-#for i in cols:
-#	if e.startswith( 'sum' ):
-
 d_cols = []
 if 'WHERE' not in sql:
-
+	# ********************************************************************************************************** #
 	#select * from t1
 	if sql[1] == '*' and len(sql) == 4:
 		output = D[seperate_tables[0]]
 		for i in output:
 			print (', '.join(str(x) for x in i))
-
+	# ********************************************************************************************************** #
 	# select * from t1,t2
 	#elif sql[1] == '*' and len(seperate_tables) > 1 and len(sql) > 4:
 		
@@ -153,46 +170,42 @@ if 'WHERE' not in sql:
 	#	for i in tables_contents[0]:
 	#		print i
 		#print len(tables_contents[0])
-	
+	# ********************************************************************************************************** #	
 	#select distinct(A,B..) from t1
-	elif len(cols[0]) == 1 and len(seperate_tables) == 1:
-		if cols[0][0].startswith('distinct(') or cols[0][0].startswith('DISTINCT('):
-			col_split = re.split(r'(\,|\(|\))\s*',cols[0][0])
-			col_split.remove(',')
-			start_index = col_split.index('(') + 1
-			end_index = col_split.index(')') - 1
-			f_row = []
-			t_name = seperate_tables[0]
-			for i in range(start_index,end_index+1):
-				f_row.append(t_name + '.' + col_split[i])
-			print(', '.join(f_row))
-
-			#error handling
-			for i in col_split[start_index:end_index + 1]:
-				if i not in D[t_name][0]:
-					print('ERROR: Attribute ' + i +' not in table')
-
-			flag = 0
-			all_pairs = [[]]
-			for i in col_split[start_index:end_index + 1]:
-				index =  D[t_name][0].index(i)
-				for k in range(1,len(D[t_name])):
-					if flag == 0:
-						all_pairs.append([])
-					all_pairs[k-1].append(D[t_name][k][index])
-				flag = 1
-			dis_op = distinct(all_pairs)
-			
-			for i in dis_op:
-				print (', '.join(str(x) for x in i))
-
-
-	
-	#select A,B from t1
-	if len(cols[0]) >= 1 and len(seperate_tables) == 1:
+	elif len(cols) == 1 and len(seperate_tables) == 1 and cols[0].startswith('distinct(') or cols[0].startswith('DISTINCT('):
+		col_split = re.split(r'(\,|\(|\))\s*',cols[0])
+		col_split.remove(',')
+		start_index = col_split.index('(') + 1
+		end_index = col_split.index(')') - 1
 		f_row = []
-		for i in range(len(cols[0])):
-			f_row.append(seperate_tables[0] + '.' + cols[0][i])
+		t_name = seperate_tables[0]
+		for i in range(start_index,end_index+1):
+			f_row.append(t_name + '.' + col_split[i])
+		print(', '.join(f_row))
+			#error handling
+		for i in col_split[start_index:end_index + 1]:
+			if i not in D[t_name][0]:
+				print('ERROR: Attribute ' + i +' not in table')
+		flag = 0
+		all_pairs = [[]]
+		for i in col_split[start_index:end_index + 1]:
+			index =  D[t_name][0].index(i)
+			for k in range(1,len(D[t_name])):
+				if flag == 0:
+					all_pairs.append([])
+				all_pairs[k-1].append(D[t_name][k][index])
+			flag = 1
+		dis_op = distinct(all_pairs)
+			
+		for i in dis_op:
+			print (', '.join(str(x) for x in i))
+
+	# ********************************************************************************************************** #	
+	#select A,B from t1
+	elif len(cols) >= 1 and len(seperate_tables) == 1:
+		f_row = []
+		for i in range(len(cols)):
+			f_row.append(seperate_tables[0] + '.' + cols[i])
 
 		output.append((f_row))
 		
@@ -200,8 +213,10 @@ if 'WHERE' not in sql:
 		t_name = seperate_tables[0]
 		flag = 0
 		op_flag = 0
-		for i in cols[0]:
+		for i in cols:
+	# ********************************************************************************************************** #
 			#select func(A) from t1
+			col_name = i.split('.')
 			if i.startswith(tuple(functions)):
 				x = []
 				op_flag = 1
@@ -241,11 +256,25 @@ if 'WHERE' not in sql:
 						x.append(D[t_name][k][index])
 					output.append([])
 					output[1].append(min(x))				
+			elif len(col_name)>1:
+				t_name = col_name[0]
+				if col_name[1] not in D[t_name][0]:
+						print('ERROR: Attribute ' + i +' not in table')
+				c_name = col_name[1]
+				index =  D[t_name][0].index(c_name)
+				for k in range(1,len(D[t_name])):
+					if flag == 0:
+						output.append([])
+					output[k].append(D[t_name][k][index])
+					if op_flag == 1:
+						break
+				flag = 1
+
 			else:			
 		#error handling
-				for i in cols[0]:
+				for i in cols:
 					if i not in D[seperate_tables[0]][0]:
-						print('ERROR: Attribute' + i +'not in table')
+						print('ERROR: Attribute ' + i +' not in table')
 
 				index =  D[t_name][0].index(i)
 				for k in range(1,len(D[t_name])):
@@ -258,24 +287,24 @@ if 'WHERE' not in sql:
 
 		for i in output:
 			print (', '.join(str(x) for x in i))
-
+	# ********************************************************************************************************** #
 	#select A,B,t1.A from t1,t2	
-	elif len(cols[0]) > 1 and len(seperate_tables) > 1 and '*' not in cols[0]:
+	elif len(cols) > 1 and len(seperate_tables) > 1 and '*' not in cols:
 		col_op = []
 		f_row = []
-		for i in range(len(cols[0])):
-			f_row.append(seperate_tables[0] + '.' + cols[0][i])
+		for i in range(len(cols)):
+			f_row.append(seperate_tables[0] + '.' + cols[i])
 		output.append((f_row))
 
-		for i in range(len(cols[0])):
-			col_name = cols[0][i].split('.')
+		for i in range(len(cols)):
+			col_name = cols[i].split('.')
 			if len(col_name)>1:
 				if col_name[1] not in D[col_name[0]][0]:
 					print('ERROR: Attribute' + i +'not in table')
 		rows = []
-		for k in range(len(cols[0])):
+		for k in range(len(cols)):
 			col_op.append([])
-			col_name = cols[0][k].split('.')
+			col_name = cols[k].split('.')
 			# of type tablename.colname
 			if len(col_name)>1:
 				t_name = col_name[0]
@@ -293,3 +322,6 @@ if 'WHERE' not in sql:
 			for i in range(len(col_op)):
 				line.append(col_op[i][j])
 			print(', '.join(str(x) for x in line))
+
+## Queries with where
+elif 'WHERE' in sql:
