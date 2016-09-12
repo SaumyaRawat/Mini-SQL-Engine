@@ -39,7 +39,7 @@ ops = {"=": operator.eq,
        ">=": operator.ge,
        "!=": operator.ne,
        "<>": operator.ne }
-
+opkeys = ['=', '>', '<>', '<=', '<', '>=', '!=']
 #-----------------------------------------------------------------------------------------------------#
 
 with open('metadata.txt') as inputfile:
@@ -73,7 +73,6 @@ sql = (sys.argv[1]).split(" ")
 if sql[0] not in ['SELECT','select']:
 	print('ERROR: Must start with SELECT')
 	sys.exit()
-
 #-----------------------------------------------------------------------------------------------------#
 # error handling
 i = sql.count('')
@@ -124,7 +123,8 @@ if 'WHERE' in sql:
 
 	first = []
 	second = []
-
+	and_index = -1
+	or_index = -1
 	if 'AND' in cond:
 		and_index = cond.index('AND')
 		first = cond[0 : and_index ]
@@ -152,24 +152,26 @@ if 'WHERE' not in sql:
 		output = D[seperate_tables[0]]
 		for i in output:
 			print (', '.join(str(x) for x in i))
+
 	# ********************************************************************************************************** #
 	# select * from t1,t2
-	#elif sql[1] == '*' and len(seperate_tables) > 1 and len(sql) > 4:
-		
-	#	while 
-	#		a = tables_contents.pop()
-	#		b = tables_contents.pop()
-	#		c = project(a, b)
-	#		tables_contents.append(c)
+	elif sql[1] == '*' and len(seperate_tables) > 1 and len(sql) > 4:
+		f_row = []
+		for k in range(len(seperate_tables)):
+			row1 = deepcopy(D[t1][0])
+			for x in row1:
+				row1[row1.index(x)] = t1 + '.' + x
+			f_row = row + row1
 
-	#	header = []
-	#	for i in tables:
-	#		header.extend(get_attributes(i))
-	#	print ",  ".join(header)
+		output.append((f_row))
 
-	#	for i in tables_contents[0]:
-	#		print i
-		#print len(tables_contents[0])
+		for ind in range(1,len(D[t1])):
+			if op_func(D[t1][ind][c_ind], D[t2][ind][c2_ind]):
+				output.append(D[t1][ind][:]+D[t2][ind][:])
+		for i in output:
+			print (', '.join(str(x) for x in i))
+
+
 	# ********************************************************************************************************** #	
 	#select distinct(A,B..) from t1
 	elif len(cols) == 1 and len(seperate_tables) == 1 and cols[0].startswith('distinct(') or cols[0].startswith('DISTINCT('):
@@ -324,4 +326,339 @@ if 'WHERE' not in sql:
 			print(', '.join(str(x) for x in line))
 
 ## Queries with where
-elif 'WHERE' in sql:
+elif 'WHERE' in sql:	
+	if cond!= [] and first == [] and second == [] and sql[1] == '*':
+		cond = "".join(cond)
+		f_row = []
+		if len(cond.split("<="))>1:
+			#error handling
+			if len(cond.split("<="))>2:
+				print('Error: Condition is invalid ')
+			condition = cond.split("<=")
+			op_func = ops["<="]
+
+		elif len(cond.split(">="))>1:
+			#error handling
+			if len(cond.split("<="))>2:
+				print('Error: Condition is invalid ')
+			condition = cond.split(">=")
+			op_func = ops[">="]
+
+		elif len(cond.split("!="))>1:
+			#error handling
+			if len(cond.split("<="))>2:
+				print('Error: Condition is invalid ')
+			condition = cond.split("!=")
+			op_func = ops["!="]
+
+		elif len(cond.split("<>"))>1:
+			#error handling
+			if len(cond.split("<="))>2:
+				print('Error: Condition is invalid ')
+			condition = cond.split("<>")
+			op_func = ops["<>"]
+
+		elif len(cond.split("="))>1:
+			#error handling
+			if len(cond.split("<="))>2:
+				print('Error: Condition is invalid ')
+			condition = cond.split("=")
+			op_func = ops["="]
+
+		elif len(cond.split("<"))>1:
+			#error handling
+			if len(cond.split("<="))>2:
+				print('Error: Condition is invalid ')
+			condition = cond.split("<")
+			op_func = ops["<"]
+
+
+		elif len(cond.split(">"))>1:
+			#error handling
+			if len(cond.split("<="))>2:
+				print('Error: Condition is invalid ')
+			condition = cond.split(">")
+			op_func = ops[">"]
+
+		term1 = condition[0]
+		term2 = condition[1]
+
+
+		c1 = term1.split('.')[1]
+		t1 = term1.split('.')[0]
+		c_ind = D[t1][0].index(c1)
+
+		if term2.isnumeric():
+			# ********************************************************************************************************** #
+			#select * from t1 where t1.A <op> NUMBER
+			f_row.extend(D[t1][0])
+			output.append((f_row))
+
+			for ind in range(1,len(D[t1])):
+				if op_func(D[t1][ind][c_ind], term2):
+					output.append(D[t1][ind][:])
+
+		else:
+			# ********************************************************************************************************** #
+			#select * from t1,t2 where t1.A <op> t2.B
+			c2 = term2.split('.')[1]
+			t2 = term2.split('.')[0]
+			
+			#error handling
+			c2_ind = D[t2][0].index(c2) if c2 in D[t2][0] else -1
+			if c2_ind == -1:
+			   	print('Error : Attribute not found')
+			   	sys.exit()
+			
+			row1 = D[t1][0]
+			for x in row1:
+				row1[row1.index(x)] = t1 + '.' + x
+
+			row2 = D[t2][0]
+			for x in row2:
+				row2[row2.index(x)] = t2 + '.' + x				
+
+			f_row.extend(row1 + row2)
+			output.append((f_row))
+
+			for ind in range(1,len(D[t1])):
+				if op_func(D[t1][ind][c_ind], D[t2][ind][c2_ind]):
+					output.append(D[t1][ind][:]+D[t2][ind][:])
+		for i in output:
+			print (', '.join(str(x) for x in i))
+
+	elif cond!= [] and first == [] and second == []:
+			# ********************************************************************************************************** #
+			#select A,B from t1,t2 where t1.A <op> t2.B
+			cond = "".join(cond)
+			f_row = []
+			if len(cond.split("<="))>1:
+				#error handling
+				if len(cond.split("<="))>2:
+					print('Error: Condition is invalid ')
+				condition = cond.split("<=")
+				op_func = ops["<="]
+
+			elif len(cond.split(">="))>1:
+				#error handling
+				if len(cond.split(">="))>2:
+					print('Error: Condition is invalid ')
+				condition = cond.split(">=")
+				op_func = ops[">="]
+
+			elif len(cond.split("!="))>1:
+				#error handling
+				if len(cond.split("!="))>2:
+					print('Error: Condition is invalid ')
+				condition = cond.split("!=")
+				op_func = ops["!="]
+
+			elif len(cond.split("<>"))>1:
+				#error handling
+				if len(cond.split("<>"))>2:
+					print('Error: Condition is invalid ')
+				condition = cond.split("<>")
+				op_func = ops["<>"]
+
+			elif len(cond.split("="))>1:
+				#error handling
+				if len(cond.split("="))>2:
+					print('Error: Condition is invalid ')
+				condition = cond.split("=")
+				op_func = ops["="]
+
+			elif len(cond.split("<"))>1:
+				#error handling
+				if len(cond.split("<"))>2:
+					print('Error: Condition is invalid ')
+				condition = cond.split("<")
+				op_func = ops["<"]
+
+
+			elif len(cond.split(">"))>1:
+				#error handling
+				if len(cond.split(">"))>2:
+					print('Error: Condition is invalid ')
+				condition = cond.split(">")
+				op_func = ops[">"]
+
+			term1 = condition[0]
+			term2 = condition[1]
+
+
+			c1 = term1.split('.')[1]
+			t1 = term1.split('.')[0]
+			c_ind = D[t1][0].index(c1)
+
+			if term2.isnumeric():
+				# ********************************************************************************************************** #
+				#select A,B from t1,t2 where t1.A <op> NUMBER
+				
+				col_op = []
+				f_row.extend(D[t1][0])
+				output.append((f_row))
+				rows = []
+				for k in range(len(cols)):
+					col_op.append([])
+					col_name = cols[k].split('.')
+					# of type tablename.colname
+					if len(col_name)>1:
+						t_name = col_name[0]
+						col = col_name[1]
+						index =  D[t_name][0].index(col)
+						for ind in range(1,len(D[t1])):
+							if op_func(D[t1][ind][c_ind], int(term2)):
+								col_op[k].append(D[t_name][ind][index])
+					else:
+						print('Column '+ col_name[0]+' in field list is ambiguous')
+
+
+			else:
+				# ********************************************************************************************************** #
+				#select A,B from t1,t2 where t1.A <op> t2.B
+				c2 = term2.split('.')[1]
+				t2 = term2.split('.')[0]
+				
+				#error handling
+				c2_ind = D[t2][0].index(c2) if c2 in D[t2][0] else -1
+				if c2_ind == -1:
+				   	print('Error : Attribute not found')
+				   	sys.exit()
+				f_row = []
+				for i in range(len(cols)):
+					f_row.append(cols[i])
+				output.append((f_row))
+
+				col_op = []
+
+				for i in range(len(cols)):
+					col_name = cols[i].split('.')
+					if len(col_name)>1:
+						if col_name[1] not in D[col_name[0]][0]:
+							print('ERROR: Attribute ' + col_name[1] +' not in ' + col_name[0])
+				rows = []
+				for k in range(len(cols)):
+					col_op.append([])
+					col_name = cols[k].split('.')
+					# of type tablename.colname
+					if len(col_name)>1:
+						t_name = col_name[0]
+						col = col_name[1]
+						index =  D[t_name][0].index(col)
+						for ind in range(1,len(D[t1])):
+							if op_func(D[t1][ind][c_ind], D[t2][ind][c2_ind]):
+								col_op[k].append(D[t_name][ind][index])
+					
+					else:
+						print('Column '+ col_name[0]+' in field list is ambiguous')
+
+			print(', '.join(str(x) for x in f_row))
+			for count_j in range(len(col_op[i])):
+				line = []
+				for i in range(len(col_op)):
+					line.append(col_op[i][count_j])
+				print(', '.join(str(x) for x in line))
+	# and / or
+	elif first!=[] and second!=[]:
+		first = "".join(first)
+		second = "".join(second)
+		# ********************************************************************************************************** #
+		#select A,B from t1,t2 where t1.A <op> t2.B
+		f_row = []
+		# FIRST
+		if len(first.split("="))>2:
+			print('Error: Condition is invalid ')
+			condition1 = first.split("=")
+			op_func = ops["="]
+
+			term1 = condition1[0]
+			term2 = condition1[1]
+
+
+			c1 = term1.split('.')[1]
+			t1 = term1.split('.')[0]
+			c1_ind = D[t1][0].index(c1)
+
+		#SECOND
+		if len(second.split("="))>2:
+			print('Error: Condition is invalid ')
+			condition2 = second.split("=")
+			op_func = ops["="]
+
+			term3 = condition2[0]
+			term4 = condition2[1]
+
+
+			c3 = term3.split('.')[1]
+			t3 = term3.split('.')[0]
+			c3_ind = D[t3][0].index(c3)
+			
+
+			if term2.isnumeric():
+				# ********************************************************************************************************** #
+				#select A,B from t1,t2 where t1.A <op> NUMBER
+				
+				col_op = []
+				f_row.extend(D[t1][0])
+				output.append((f_row))
+				rows = []
+				for k in range(len(cols)):
+					col_op.append([])
+					col_name = cols[k].split('.')
+					# of type tablename.colname
+					if len(col_name)>1:
+						t_name = col_name[0]
+						col = col_name[1]
+						index =  D[t_name][0].index(col)
+						for ind in range(1,len(D[t1])):
+							res1 = op_func(D[t1][ind][c_ind], int(term2)):
+								col_op[k].append(D[t_name][ind][index])
+					else:
+						print('Column '+ col_name[0]+' in field list is ambiguous')
+
+
+			else:
+				# ********************************************************************************************************** #
+				#select A,B from t1,t2 where t1.A <op> t2.B
+				c2 = term2.split('.')[1]
+				t2 = term2.split('.')[0]
+				
+				#error handling
+				c2_ind = D[t2][0].index(c2) if c2 in D[t2][0] else -1
+				if c2_ind == -1:
+				   	print('Error : Attribute not found')
+				   	sys.exit()
+				f_row = []
+				for i in range(len(cols)):
+					f_row.append(cols[i])
+				output.append((f_row))
+
+				col_op = []
+
+				for i in range(len(cols)):
+					col_name = cols[i].split('.')
+					if len(col_name)>1:
+						if col_name[1] not in D[col_name[0]][0]:
+							print('ERROR: Attribute ' + col_name[1] +' not in ' + col_name[0])
+				rows = []
+				for k in range(len(cols)):
+					col_op.append([])
+					col_name = cols[k].split('.')
+					# of type tablename.colname
+					if len(col_name)>1:
+						t_name = col_name[0]
+						col = col_name[1]
+						index =  D[t_name][0].index(col)
+						for ind in range(1,len(D[t1])):
+							if op_func(D[t1][ind][c_ind], D[t2][ind][c2_ind]):
+								col_op[k].append(D[t_name][ind][index])
+					
+					else:
+						print('Column '+ col_name[0]+' in field list is ambiguous')
+
+			print(', '.join(str(x) for x in f_row))
+			for count_j in range(len(col_op[i])):
+				line = []
+				for i in range(len(col_op)):
+					line.append(col_op[i][count_j])
+				print(', '.join(str(x) for x in line))
