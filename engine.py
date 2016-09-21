@@ -70,7 +70,6 @@ for i in range(len(table_name)):
 
 #take input for query
 sql = (sys.argv[1]).split(" ")
-
 if sql[0] not in ['SELECT','select','Select']:
 	print('ERROR: Must start with SELECT')
 	sys.exit()
@@ -146,8 +145,6 @@ for i in seperate_tables:
      if i not in D.keys():
             print('Error! table doesnt exist!')
             sys.exit()
-
-
 #-----------------------------------------------------------------------------------------------------#
 # Processing Queries
 
@@ -326,7 +323,6 @@ if 'WHERE' not in sql:
 				index =  D[t_name][0].index(col)
 				for t in range(1,len(D[t_name])):
 					col_op[k].append(D[t_name][t][index])
-			
 			elif len(col_name)==1:
 				for t_name in seperate_tables:
 					if col_name[0] in D[t_name][0]:
@@ -650,7 +646,6 @@ elif 'WHERE' in sql:
 		term1 = condition1[0]
 		term2 = condition1[1]
 
-
 		if len(term1.split('.'))>1:
 			c1 = term1.split('.')[1]
 			t1 = term1.split('.')[0]
@@ -672,7 +667,6 @@ elif 'WHERE' in sql:
 
 		term3 = condition2[0]
 		term4 = condition2[1]
-
 
 		if len(term3.split('.'))>1:
 			c3 = term3.split('.')[1]
